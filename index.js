@@ -1,12 +1,12 @@
-const Express = require("Express");
+const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
-const app = Express();
+const app = express();
 const port = process.env.PORT || 3001;
 const date = new Date();
 
 app.use(cors());
-app.use(Express.json());
+app.use(express.json());
 morgan.token("response", (req, res) => JSON.stringify(req.body));
 app.use(
   morgan(
