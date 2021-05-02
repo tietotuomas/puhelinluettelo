@@ -1,14 +1,18 @@
 const Express = require("Express");
 const morgan = require("morgan");
-const cors = require("cors")
+const cors = require("cors");
 const app = Express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 const date = new Date();
 
-app.use(cors())
+app.use(cors());
 app.use(Express.json());
-morgan.token("response", (req, res) => JSON.stringify(req.body))
-app.use(morgan(":method :url :status :res[content-length] - :response-time ms :response"))
+morgan.token("response", (req, res) => JSON.stringify(req.body));
+app.use(
+  morgan(
+    ":method :url :status :res[content-length] - :response-time ms :response"
+  )
+);
 
 let persons = [
   {
@@ -107,12 +111,11 @@ const generateId = () => {
 };
 
 const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint' })
-}
+  response.status(404).send({ error: "unknown endpoint" });
+};
 
-app.use(unknownEndpoint)
+app.use(unknownEndpoint);
 
-
-
-app.listen(port);
-console.log(`Server running on port ${port}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
