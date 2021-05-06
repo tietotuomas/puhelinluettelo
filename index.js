@@ -1,11 +1,13 @@
+require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT;
 const date = new Date();
+const Person = require("./models/person");
 
-app.use(express.static("build"))
+app.use(express.static("build"));
 app.use(cors());
 app.use(express.json());
 morgan.token("response", (req, res) => JSON.stringify(req.body));
@@ -14,62 +16,70 @@ app.use(
     ":method :url :status :res[content-length] - :response-time ms :response"
   )
 );
+const errorHandler = (error, request, response, next) => {
+  console.log(error.message);
 
-let persons = [
-  {
-    name: "Arto Hellas",
-    number: "040-123456",
-    id: 1,
-  },
-  {
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-    id: 2,
-  },
-  {
-    name: "Dan Abramov",
-    number: "12-43-234345",
-    id: 3,
-  },
-  {
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-    id: 4,
-  },
-];
+  if (error.name === "CastError") {
+    console.log("id was not correctly defined");
+    return response.status(400).send({ error: "malformatted id" });
+  }
 
-app.get("/api/persons", (req, res) => {
-  res.json(persons);
-});
+  next(error);
+};
 
 app.get("/info", (req, res) => {
-  res.send(
-    `<p>Phonebook has info for ${
-      persons.length
-    } people</p>${date.toTimeString()}`
-  );
+  Person.find({}).then((persons) => {
+    console.log("retrieving data (all resources) from MongoDB:");
+    console.log(persons.length);
+    res.send(
+      `<p>Phonebook has info for ${
+        persons.length
+      } people</p>${date.toTimeString()}<br></br>${date.toLocaleDateString()}`
+    );
+  });
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  console.log("yksittäistä resurssia etsimässä");
-  const id = Number(req.params.id);
-  const person = persons.find((person) => person.id === id);
-  if (person) {
-    res.json(person);
-  } else {
-    res.status(404).end();
-  }
+app.get("/api/persons", (req, res) => {
+  Person.find({}).then((persons) => {
+    console.log("retrieving data (all resources) from MongoDB:");
+    console.log(persons);
+    res.json(persons);
+  });
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-  console.log("resurssia poistamssa");
-  const id = Number(req.params.id);
-  persons = persons.filter((person) => person.id !== id);
-  res.status(204).end();
+app.get("/api/persons/:id", (req, res, next) => {
+  Person.findById(req.params.id)
+    .then((person) => {
+      console.log("retrieving data (single resource) from MongoDB:");
+
+      if (person) {
+        console.log(person);
+        res.json(person);
+      } else {
+        console.log("no resource was found");
+        res.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
+});
+
+app.delete("/api/persons/:id", (req, res, next) => {
+  console.log("deleting resource");
+  Person.findByIdAndRemove(req.params.id)
+    .then((deletedPerson) => {
+      if (deletedPerson) {
+        console.log("deleted person:");
+        console.log(deletedPerson);
+        res.status(204).end();
+      } else {
+        next(error);
+      }
+    })
+    .catch((error) => next(error));
 });
 
 app.post("/api/persons", (req, res) => {
-  console.log("Resurssia lisäämässä");
+  console.log("Adding resource");
   if (!req.body.name && !req.body.number) {
     return res.status(400).json({
       error: "Body missing required information: name and number.",
@@ -88,34 +98,53 @@ app.post("/api/persons", (req, res) => {
     });
   }
 
-  const names = persons.map((person) => person.name);
-  if (names.includes(req.body.name)) {
-    return res.status(400).json({
-      error: "Name must be unique.",
-    });
-  }
+  // const names = persons.map((person) => person.name);
+  // if (names.includes(req.body.name)) {
+  //   return res.status(400).json({
+  //     error: "Name must be unique.",
+  //   });
+  // }
 
-  const ids = persons.map((person) => person.id);
-  let id = generateId();
-  while (ids.includes(id)) {
-    console.log("Arvotaan uusi id");
-    id = generateId();
-  }
-  const person = { name: req.body.name, number: req.body.number, id: id };
-  console.log(person);
-  persons = persons.concat(person);
-  res.json(person);
+  const person = new Person({
+    name: req.body.name,
+    number: req.body.number,
+  });
+
+  person.save().then((savedPerson) => {
+    console.log("responding with saved person:");
+    console.log(savedPerson);
+    res.json(savedPerson);
+  });
 });
 
-const generateId = () => {
-  return Math.floor(Math.random() * (100 + persons.length));
-};
+// const generateId = () => {
+//   return Math.floor(Math.random() * (100 + persons.length));
+// };
+
+app.put("/api/persons/:id", (req, res, next) => {
+  const person = {
+    name: req.body.name,
+    number: req.body.number,
+  };
+  console.log("Updating resource");
+  Person.findByIdAndUpdate(req.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      if (updatedPerson) {
+        res.json(updatedPerson);
+      } else {
+        next(error);
+      }
+    })
+    .catch((error) => next(error));
+});
 
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: "unknown endpoint" });
 };
 
 app.use(unknownEndpoint);
+
+app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

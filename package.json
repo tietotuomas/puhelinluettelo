@@ -9,14 +9,16 @@
     "start": "node index.js",
     "build:ui": "rm -rf build && cd ../Fullstack2021/osa2/puhelinluettelo/ && npm run build --prod && cp -r build ../../../puhelinluettelo",
     "deploy": "git push heroku main",
-    "deploy:full": "npm run build:ui && git add . && git commit -m Deploy full && git push && npm run deploy",    
+    "deploy:full": "npm run build:ui && git add . && git commit -m DeployFull && git push && npm run deploy",
     "logs:prod": "heroku logs --tail"
   },
   "author": "tietotuomas",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "mongoose": "^5.12.7",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
