@@ -17,11 +17,20 @@ app.use(
   )
 );
 const errorHandler = (error, request, response, next) => {
-  console.log(error.message);
+  console.log("ERROR", error.name, ": ", error.message);
 
   if (error.name === "CastError") {
     console.log("id was not correctly defined");
     return response.status(400).send({ error: "malformatted id" });
+  }
+
+  if (error.name === "deleteError") {
+    console.log("person already deleted");
+    return response.status(409).send({ error: "person already deleted" });
+  }
+
+  if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
   }
 
   next(error);
@@ -72,13 +81,19 @@ app.delete("/api/persons/:id", (req, res, next) => {
         console.log(deletedPerson);
         res.status(204).end();
       } else {
-        next(error);
+        try {
+          const deleteError = new Error("Person already deleted");
+          deleteError.name = "deleteError";
+          throw deleteError;
+        } catch (error) {
+          next(error);
+        }
       }
     })
     .catch((error) => next(error));
 });
 
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons", (req, res, next) => {
   console.log("Adding resource");
   if (!req.body.name && !req.body.number) {
     return res.status(400).json({
@@ -110,11 +125,14 @@ app.post("/api/persons", (req, res) => {
     number: req.body.number,
   });
 
-  person.save().then((savedPerson) => {
-    console.log("responding with saved person:");
-    console.log(savedPerson);
-    res.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      console.log("responding with saved person:");
+      console.log(savedPerson);
+      res.json(savedPerson);
+    })
+    .catch((error) => next(error));
 });
 
 // const generateId = () => {
@@ -132,7 +150,13 @@ app.put("/api/persons/:id", (req, res, next) => {
       if (updatedPerson) {
         res.json(updatedPerson);
       } else {
-        next(error);
+        try {
+          const deleteError = new Error("Person already deleted");
+          deleteError.name = "deleteError";
+          throw deleteError;
+        } catch (error) {
+          next(error);
+        }
       }
     })
     .catch((error) => next(error));
